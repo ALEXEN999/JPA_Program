@@ -16,7 +16,7 @@ public class Instituto {
     private String nombre;
 
     @Column(name = "n_alumnos")
-    private String nAlumnos;
+    private int nAlumnos;
 
     public int getId() {
         return id;
@@ -34,11 +34,11 @@ public class Instituto {
         this.nombre = nombre;
     }
 
-    public String getNAlumnos() {
+    public int getNAlumnos() {
         return nAlumnos;
     }
 
-    public void setNAlumnos(String nAlumnos) {
+    public void setNAlumnos(int nAlumnos) {
         this.nAlumnos = nAlumnos;
     }
 
