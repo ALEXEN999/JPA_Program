@@ -4,19 +4,19 @@ import javax.persistence.*;
 import javax.persistence.criteria.CriteriaBuilder;
 import java.util.List;
 import java.util.Scanner;
+import java.util.SortedSet;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.System.exit;
+import static java.lang.System.out;
 
 // http://chuwiki.chuidiang.org/index.php?title=Ejemplo_sencillo_de_JPA_con_Java_SEl
 public class Main {
 
-    EntityManagerFactory emf;
-    static EntityManager em;
+    static EntityManagerFactory emf = Persistence.createEntityManagerFactory("damPersistence");
+    static EntityManager em = emf.createEntityManager();
 
-    public Main(){
-        emf= Persistence.createEntityManagerFactory("damPersistence");
-        em = emf.createEntityManager();
-    }
+
 
     public static void main(String[] args) {
         Scanner in = new Scanner(System.in);
@@ -30,43 +30,39 @@ public class Main {
             int op = in.nextInt();
             switch (op) {
                 case 1:
-                    em.getTransaction().begin();
                     System.out.println("Agregar Instituto");
-                    em.persist(addInstituto(in));
-                    em.getTransaction().commit();
+                    addInstituto(in);
                     break;
                 case 2:
-                    em.getTransaction().begin();
                     System.out.println("Agregar Clase");
-                    em.persist(addClase(in));
-                    em.getTransaction().commit();
+                    addClase(in);
                     break;
                 case 3:
-                    em.getTransaction().begin();
                     System.out.println("Agregar Alumno");
-                    em.persist(addAlumne(in));
-                    em.getTransaction().commit();
+                    addAlumne(in);
                     break;
                 case 4:
-                    System.out.println("1.-Clase\n3.-Instituto");
+                    System.out.println("1.-Instituto\n2.-Clase");
                     int consultar = in.nextInt();
                     switch (consultar){
                         case 1:
-                            TypedQuery<Clase> q2 = em.createQuery(consultaC,Clase.class);
+                            TypedQuery<Instituto> q2 = em.createQuery(consultaI,Instituto.class);
 
-                            List<Clase> resultadosC = q2.getResultList();
+                            List<Instituto> resultadosI = q2.getResultList();
 
-                            resultadosC.forEach(System.out::println);
-                            System.out.println("Elige el id de la clase que quieres actualizar: ");
+                            resultadosI.forEach(System.out::println);
+                            System.out.println("Elige el id de la instituto que quieres actualizar: ");
                             actualizarAlumnosInstituto(in.nextInt());
                             break;
 
                         case 2:
-                            TypedQuery<Instituto> q3 = em.createQuery(consultaI,Instituto.class);
+                            TypedQuery<Clase> q3 = em.createQuery(consultaC,Clase.class);
 
-                            List<Instituto> resultadosI = q3.getResultList();
+                            List<Clase> resultadosC = q3.getResultList();
 
-                            resultadosI.forEach(System.out::println);
+                            resultadosC.forEach(System.out::println);
+                            System.out.println("Elige el id de la clase que quieres actualizar: ");
+                            actualizarAlumnosClase(in.nextInt());
                             break;
                     }
 
@@ -79,7 +75,7 @@ public class Main {
         }
     }
 
-    public static void actualizarAlumnosInstituto(int idClase){
+    public static void actualizarAlumnosClase(int idClase){
         Clase clase = em.find(Clase.class,idClase);
 
         TypedQuery<Alumno> q1 = em.createQuery("SELECT a FROM Alumno a",Alumno.class);
@@ -91,47 +87,66 @@ public class Main {
         em.getTransaction().begin();
         clase.setNAlumnos((int)nAlumnos);
         em.getTransaction().commit();
-        resultadosA.forEach(System.out::println);
+        System.out.println();
+        System.out.println("La clase con el id "+idClase+" tiene "+nAlumnos+" alumnos");
+        resultadosA.stream().filter(alumno -> alumno.getClaseId() == clase.getId()).forEach(System.out::println);
+        System.out.println();
+
     }
 
-    public void actualizarAlumnosClase(int idClase){
-        Clase clase = em.find(Clase.class,idClase);
+    public static void actualizarAlumnosInstituto(int idInstituto){
+        Instituto instituto = em.find(Instituto.class,idInstituto);
 
-        TypedQuery<Alumno> q1 = em.createQuery("SELECT a FROM Alumno a",Alumno.class);
+        TypedQuery<Clase> query = em.createQuery("SELECT c FROM Clase c", Clase.class);
+        List<Clase> resultadosA = query.getResultList();
 
-        List<Alumno> resultadosA = q1.getResultList();
+        AtomicInteger nAlumnos = new AtomicInteger();
+        resultadosA
+                .stream()
+                .filter(clase -> clase.getInstitutoId() == instituto.getId())
+                .forEach(clase -> {
+                    nAlumnos.set(clase.getNAlumnos()+nAlumnos.get());
+                });
 
-        long nAlumnos = resultadosA.stream().filter(alumno -> alumno.getClaseId()==clase.getId()).count();
-
+        int numa = nAlumnos.get();
         em.getTransaction().begin();
-        clase.setNAlumnos((int)nAlumnos);
+        instituto.setNAlumnos(numa);
         em.getTransaction().commit();
+        System.out.println();
 
-        resultadosA.forEach(System.out::println);
+        System.out.println("El instituto con el id "+idInstituto+" tiene "+numa+" alumnos");
+        resultadosA.stream().filter(clase -> clase.getInstitutoId() == instituto.getId()).forEach(System.out::println);
+
+        System.out.println();
+
     }
 
 
 
-    public static Alumno addAlumne(Scanner in){
+    public static void addAlumne(Scanner in){
         Alumno alumno = new Alumno();
         System.out.println("dni : ");
         alumno.setDni(in.nextInt());
         alumno.setNombre("alumno");
         System.out.println("Id de la clase: ");
         alumno.setClaseId(in.nextInt());
-        return alumno;
+        em.getTransaction().begin();
+        em.persist(alumno);
+        em.getTransaction().commit();
     }
 
-    public static Instituto addInstituto(Scanner in) {
+    public static void addInstituto(Scanner in) {
         Instituto instituto = new Instituto();
 
         instituto.setNombre("Instituto"+Math.random()*100+1);
         System.out.println("Id del Instituto: ");
         instituto.setId(in.nextInt());
-        return instituto;
+        em.getTransaction().begin();
+        em.persist(instituto);
+        em.getTransaction().commit();
     }
 
-    public static Clase addClase(Scanner in){
+    public static void addClase(Scanner in){
         Clase clase = new Clase();
         System.out.println("Id de la clase: ");
         clase.setId(in.nextInt());
@@ -139,6 +154,8 @@ public class Main {
         clase.setInstitutoId(in.nextInt());
         clase.setNombre("DAM654");
         clase.setRama("DAM");
-        return clase;
+        em.getTransaction().begin();
+        em.persist(clase);
+        em.getTransaction().commit();
     }
-    }
+}
